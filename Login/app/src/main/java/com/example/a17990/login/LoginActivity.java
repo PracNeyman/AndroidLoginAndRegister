@@ -4,6 +4,7 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
@@ -30,8 +31,15 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import static android.Manifest.permission.READ_CONTACTS;
 
@@ -69,6 +77,8 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
+
+
         // Set up the login form.
         mEmailView = (AutoCompleteTextView) findViewById(R.id.email);
         populateAutoComplete();
@@ -85,10 +95,63 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             }
         });
 
+        final SharedPreferences sp = getSharedPreferences("logininfo", MODE_PRIVATE);
+        String result = sp.getString("login_info", "");
+        String logInName="";
+        String loginPassword="";
+        try {
+            JSONArray array = new JSONArray(result);
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject itemObject = array.getJSONObject(i);
+                JSONArray names = itemObject.names();
+                if (names!= null) {
+                    Map<String,String> itemMap = new HashMap<>();
+                    for (int j = 0; j < names.length(); j++) {
+                        String name = names.getString(j);
+                        String value = itemObject.getString(name);
+                        itemMap.put(name,value);
+                    }
+                    logInName = itemMap.get("stuNum");
+                    loginPassword= itemMap.get("password");
+                    break;
+                }
+            }
+            mEmailView.setText(logInName);
+            mPasswordView.setText(loginPassword);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
         Button mEmailSignInButton = (Button) findViewById(R.id.email_sign_in_button);
         mEmailSignInButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View view) {
+                if (!mEmailView.getText().equals(""))
+                {
+                    JSONArray mJsonArray = new JSONArray();
+                        String stuNum = mEmailView.getText().toString();
+                        String passWord = mPasswordView.getText().toString();
+                        Map<String, String> itemMap = new HashMap<>();
+
+                        itemMap.put("stuNum",stuNum);
+                        itemMap.put("password",passWord);
+                        Iterator<Map.Entry<String, String>> iterator = itemMap.entrySet().iterator();
+
+                        JSONObject object = new JSONObject();
+
+                        while (iterator.hasNext()) {
+                            Map.Entry<String, String> entry = iterator.next();
+                            try {
+                                object.put(entry.getKey(), entry.getValue());
+                            } catch (JSONException e) {
+
+                            }
+                        }
+                        mJsonArray.put(object);
+                    SharedPreferences.Editor editor = sp.edit();
+                    editor.putString("login_info", mJsonArray.toString());
+                    editor.commit();
+                }
                 attemptLogin();
             }
         });
@@ -210,7 +273,8 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
 
     private boolean isEmailValid(String email) {
         //TODO: Replace this with your own logic
-        return email.contains("@");
+//        return email.contains("@");
+        return true;
     }
 
     private boolean isPasswordValid(String password) {
